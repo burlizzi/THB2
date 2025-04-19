@@ -140,8 +140,8 @@ uint8_t bthome_data_beacon(void * padbuf) {
 
 	if ((adv_wrk.adv_event == 0) && (cfg.flg & FLG_FINDMY) && (clkt.utc_time_sec > *(uint32_t*)(&identity_findmy_key[32]))) {
 		if(gapRole_AdvEnabled) {
-			adv_wrk.adv_reload_count = 60000/DEF_CON_ADV_INERVAL_MS; // 60 sec
-			set_new_adv_interval(DEF_CON_ADV_INERVAL); // actual time * 625us
+			adv_wrk.adv_reload_count = 60000/DEF_CON_ADV_INTERVAL_MS; // 60 sec
+			set_new_adv_interval(DEF_CON_ADV_INTERVAL); // actual time * 625us
 		}
 		//osal_set_event(simpleBLEPeripheral_TaskID, PIN_INPUT_EVT);
 	gapRole_AdvEventType = LL_ADV_CONNECTABLE_UNDIRECTED_EVT;

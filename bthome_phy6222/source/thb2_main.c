@@ -657,8 +657,8 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
 #if (DEV_SERVICES & SERVICE_FINDMY)
 		if ((cfg.flg & FLG_FINDMY)) {
 			if(gapRole_AdvEnabled) {
-				adv_wrk.adv_reload_count = 2000/DEF_CON_ADV_INERVAL_MS; // 60 sec
-				set_new_adv_interval(DEF_CON_ADV_INERVAL); // actual time * 625us
+				adv_wrk.adv_reload_count = 2000/DEF_CON_ADV_INTERVAL_MS; // 60 sec
+				set_new_adv_interval(DEF_CON_ADV_INTERVAL); // actual time * 625us
 			}
 			LUCA_LOG("1");
 			gapRole_AdvEventType = LL_ADV_NONCONNECTABLE_UNDIRECTED_EVT;
