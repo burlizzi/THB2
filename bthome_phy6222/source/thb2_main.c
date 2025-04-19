@@ -46,6 +46,10 @@
 #include "lcd.h"
 #include "logger.h"
 #include "trigger.h"
+#include "fastpairservice.h"
+#include "ringservice.h"
+#include "dev_i2c.h"
+
 /*********************************************************************
  * MACROS
  */
@@ -56,7 +60,7 @@
 
 #define INVALID_CONNHANDLE						0xFFFF
 // Default passcode
-#define DEFAULT_PASSCODE						0 //19655
+#define DEFAULT_PASSCODE						1234 //19655
 // Length of bd addr as a string
 #define B_ADDR_STR_LEN							15
 #define RESOLVING_LIST_ENTRY_NUM				10
@@ -110,6 +114,47 @@ uint8_t * str_bin2hex(uint8_t *d, uint8_t *s, int len) {
 		*d++ = hex_ascii[(*s++ >> 0) & 0xf];
 	}
 	return d;
+}
+
+
+dev_i2c_t i2c_dev11 = {
+	.pi2cdev = AP_I2C0,
+	.scl = I2C_SCL,
+	.sda = I2C_SDA,
+	.speed = I2C_100KHZ,
+	.i2c_num = 0
+};
+
+
+
+void i2c_write_byte( uint8_t data, uint8_t reg)
+{
+	
+	if(send_i2c_wcmd(&i2c_dev11, 0x19, reg | (data << 8)))
+		log_printf("I2C: error\n");
+}
+
+void in_init()
+{
+	
+	i2c_dev11.speed = I2C_100KHZ;
+	hal_gpio_write(GPIO_P01, 1);
+	init_i2c(&i2c_dev11);
+	uint8_t buf[6]={0x0f};
+	if (read_i2c_bytes(&i2c_dev11, 0x19, 0xf,buf, 1))
+		log_printf("I2C 0xf: error\n");
+	i2c_write_byte(0x1f,8);
+	i2c_write_byte(0x20,0x27);
+	i2c_write_byte(0x23,0x88);
+	i2c_write_byte(0x21,0x31);
+	i2c_write_byte(0x22,0x40);
+	i2c_write_byte(0x25,0);
+	i2c_write_byte(0x24,0);
+	i2c_write_byte(0x30,0x2a);
+	i2c_write_byte(0x32,0x28);
+	i2c_write_byte(0x33,0);
+	i2c_write_byte(0x58,2);
+
 }
 
 // GAP - SCAN RSP data (max size = 31 bytes)
@@ -204,7 +249,7 @@ extern uint16_t gapParameters[];
 static void set_adv_interval(uint16_t advInt);
 
 // Set new advertising interval
-static void set_new_adv_interval(uint16_t advInt)
+ void set_new_adv_interval(uint16_t advInt)
 {
 	set_adv_interval(advInt);
 	GAP_EndDiscoverable( gapRole_TaskID );
@@ -232,7 +277,6 @@ static void set_adv_interval(uint16_t advInt)
 
 
 static void adv_measure(void) {
-
 	if(gapRole_AdvEnabled) {
 		get_utc_time_sec(); // счет UTC timestamp
 #if	(DEV_SERVICES & SERVICE_RDS)
@@ -388,9 +432,15 @@ static void posedge_int_wakeup_cb(GPIO_Pin_e pin, IO_Wakeup_Pol_e type)
 	(void) pin;
 	if(type == POSEDGE)
 	{
+
 		LOG("int or wakeup(pos):gpio:%d type:%d\n", pin, type);
+		if(pin == GPIO_P00) {
+			//pwm_buzzer_note(0x00+0x00);
+		}
+		
+
 #if (DEV_SERVICES & (SERVICE_KEY | SERVICE_BUTTON))
-		if(pin == GPIO_KEY) {
+		if((pin == GPIO_KEY) || (pin == GPIO_P00)) {
  #ifdef GPIO_LED
   #if KEY_PRESSED
 			hal_gpio_write(GPIO_LED, LED_ON);
@@ -423,9 +473,14 @@ static void negedge_int_wakeup_cb(GPIO_Pin_e pin, IO_Wakeup_Pol_e type)
 	(void) pin;
 	if(type == NEGEDGE)
 	{
+
+		if(pin == GPIO_P00) {
+			//pwm_buzzer_note(0xff);
+		}
+		
 		LOG("int or wakeup(neg):gpio:%d type:%d\n", pin, type);
 #if (DEV_SERVICES & (SERVICE_KEY | SERVICE_BUTTON))
-		if(pin == GPIO_KEY) {
+		if(pin == GPIO_KEY || pin == GPIO_P00) {
  #ifdef GPIO_LED
   #if KEY_PRESSED
 			hal_gpio_write(GPIO_LED, LED_OFF);
@@ -523,10 +578,33 @@ static gapRolesCBs_t simpleBLEPeripheral_PeripheralCBs =
 };
 #if (DEF_GAPBOND_MGR_ENABLE==1)
 // GAP Bond Manager Callbacks, add 2017-11-15
+
+void pairingState(
+    uint16 connectionHandle,              //!< Connection handle
+    uint8  state,                         //!< Pairing state @ref GAPBOND_PAIRING_STATE_DEFINES
+    uint8  status                         //!< Pairing status
+)
+
+
+{
+	dbg_printf("pairingState: %d %d %d\n", connectionHandle, state, status);
+}
+
+void PasscodeCB( uint8* deviceAddr, uint16 connectionHandle,
+	uint8 uiInputs, uint8 uiOutputs )
+{
+uint32 passcode = 0;
+dbg_printf("pass code CB connHandle 0x%02X,uiInputs:0x%x,uiOutputs:0x%x\n",connectionHandle,uiInputs,uiOutputs);
+GAPBondMgr_GetParameter( GAPBOND_DEFAULT_PASSCODE,&passcode);
+dbg_printf("passcode2 %d\n",passcode);
+    GAP_PasscodeUpdate(passcode,connectionHandle);
+//GAPBondMgr_PasscodeRsp(connectionHandle,SUCCESS,passcode);
+GAP_TerminateAuth( connectionHandle, SUCCESS );
+}
 static gapBondCBs_t simpleBLEPeripheral_BondMgrCBs =
 {
-	NULL,					  // Passcode callback (not used by application)
-	NULL					  // Pairing / Bonding state Callback (not used by application)
+	PasscodeCB,					  // Passcode callback (not used by application)
+	pairingState					  // Pairing / Bonding state Callback (not used by application)
 };
 #endif
 /*********************************************************************
@@ -577,11 +655,16 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
 		// device starts advertising upon initialization
 		gatrole_advert_enable(FALSE);
 #if (DEV_SERVICES & SERVICE_FINDMY)
-		if (cfg.flg & FLG_FINDMY) {
-			extern uint8_t findmy_beacon(void * padbuf);
+		if ((cfg.flg & FLG_FINDMY)) {
+			if(gapRole_AdvEnabled) {
+				adv_wrk.adv_reload_count = 2000/DEF_CON_ADV_INERVAL_MS; // 60 sec
+				set_new_adv_interval(DEF_CON_ADV_INERVAL); // actual time * 625us
+			}
+			LUCA_LOG("1");
 			gapRole_AdvEventType = LL_ADV_NONCONNECTABLE_UNDIRECTED_EVT;
-			gapRole_AdvertDataLen = findmy_beacon((void *)gapRole_AdvertData);
+			gapRole_AdvertDataLen = google_findmy_beacon((void *)gapRole_AdvertData);
 		} else {
+			LUCA_LOG("2");
 			gapRole_AdvEventType = LL_ADV_CONNECTABLE_UNDIRECTED_EVT;
 		}
 #endif
@@ -618,7 +701,7 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
 		uint32_t passkey = DEFAULT_PASSCODE;
 		uint8_t pairMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
 		uint8_t mitm = TRUE;
-		uint8_t ioCap = GAPBOND_IO_CAP_NO_INPUT_NO_OUTPUT;
+		uint8_t ioCap = GAPBOND_IO_CAP_DISPLAY_ONLY;
 		uint8_t bonding = TRUE;
 		GAPBondMgr_SetParameter( GAPBOND_DEFAULT_PASSCODE, sizeof ( uint32_t ), &passkey );
 		GAPBondMgr_SetParameter( GAPBOND_PAIRING_MODE, sizeof ( uint8_t ), &pairMode );
@@ -632,6 +715,8 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
 	GATTServApp_AddService( GATT_ALL_SERVICES );		//	GATT attributes
 	DevInfo_AddService();								//	Device Information Service
 	Batt_AddService();
+	FastPair_AddService();
+	Ring_AddService();
 #if (DEV_SERVICES & SERVICE_THS)
 	TH_AddService();
 #endif
@@ -675,8 +760,20 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
 	adv_wrk.rds_timer_tik = clkt.utc_time_tik - (RDS_EVENT_START_SEC << 15);
 #endif
 
+		
+	
+
+
+			
+	in_init();
+	//hal_gpioin_register(GPIO_P00, posedge_int_wakeup_cb, negedge_int_wakeup_cb);
+	//deinit_i2c(&i2c_dev11);
+
+
 	LOG("=====SimpleBLEPeripheral_Init Done=======\n");
 }
+
+
 
 /*********************************************************************
  * @fn		BLEPeripheral_ProcessEvent
@@ -691,12 +788,39 @@ void SimpleBLEPeripheral_Init( uint8_t task_id )
  *
  * @return	events not processed
  */
+int16_t _12bitComplement(uint8_t msb,uint8_t lsb)
+{
+
+	int16_t temp;
+	temp=msb<<8|lsb;
+	temp=temp>>4;   //只有高12位有效
+	temp=temp & 0x0fff;
+	if(temp&0x0800) //负数 补码==>原码
+	{
+		temp=temp&0x07ff; //屏弊最高位      
+		temp=~temp;
+		temp=temp+1;
+		temp=temp&0x07ff;
+		temp=-temp;       //还原最高位
+	}	
+	return temp;
+}
+extern void (*nearby_callback[2])();
+
 uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 {
+	//in_init();
+	//uint8_t buf[6]={0x0};
+	//if (read_i2c_bytes(&i2c_dev11, 0x19, 0x28,buf, 6))
+//		log_printf("I2C: error\n");
+	//log_printf("%d,%d,%d\n", _12bitComplement( buf[1],buf[0]), _12bitComplement( buf[3],buf[2]), _12bitComplement( buf[5],buf[4]));					
+	//deinit_i2c(&i2c_dev11);
+/**/
+
 	VOID task_id; // OSAL required parameter that isn't used in this function
 	if ( events & ADV_BROADCAST_EVT) {
 		adv_measure();
-		LOG("advN%u\n", adv_wrk.meas_count);
+		//LOG("advN%u\n", adv_wrk.meas_count);
 		// return unprocessed events
 		return (events ^ ADV_BROADCAST_EVT);
 	}
@@ -717,7 +841,7 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 
 	// enable adv (from gaprole start)
 	if ( events & SBP_RESET_ADV_EVT ) {
-		LOG("SBP_RESET_ADV_EVT\n");
+		log_printf("SBP_RESET_ADV_EVT\n");
 		adv_wrk.meas_count = 0;
 		// set_new_adv_interval(DEF_ADV_INERVAL); // actual time = advInt * 625us
 		gatrole_advert_enable(TRUE);
@@ -729,7 +853,15 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 		return ( events ^ BUZZER_TONE_EVT);
 	}
 #endif
-	if( events & TIMER_BATT_EVT) {
+	if ( events & ROTATE_MAC_EVT ) {
+		log_printf("ROTATE_MAC_EVT\n");
+		if (nearby_callback) nearby_callback[0]();
+	}
+	if ( events & WAIT_FOR_PAIRING_EVT ) {
+		log_printf("WAIT_FOR_PAIRING_EVT\n");
+		if (nearby_callback) nearby_callback[1]();
+	}
+if( events & TIMER_BATT_EVT) {
 		LOG("TIMER_EVT\n");
 		get_utc_time_sec(); // счет UTC timestamp
 #if (DEV_SERVICES & SERVICE_THS)
@@ -795,7 +927,15 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 #if (DEV_SERVICES & (SERVICE_RDS | SERVICE_BUTTON))
 	if(events & PIN_INPUT_EVT) {
 		int ev = 0;
+
+
 #if (DEV_SERVICES & SERVICE_BUTTON)
+		if(hal_gpio_read(GPIO_P00) == 1) {
+			adv_wrk.rds_count++;
+			measured_data.motion = 10; // move
+			ev = 1;
+			LUCA_LOG("motion\n");
+		}
 		if(hal_gpio_read(GPIO_KEY) == KEY_PRESSED) {
 			if(!measured_data.flg.pin_input) {
 				adv_wrk.rds_count++;
@@ -804,8 +944,10 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 			}
 			measured_data.flg.pin_input = 1;
 		} else {
+
 #if defined(GPIO_BUZZER) && defined(PWM_CHL_BUZZER)
-			pwm_buzzer_stop();
+				LUCA_LOG("stop1\n");
+				pwm_buzzer_stop();
 #endif
 
 //			if(measured_data.flg.pin_input)
@@ -826,7 +968,10 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 			measured_data.flg.pin_input = 0;
 		}
 #endif
-		if(ev) {
+		static uint8_t rds_count = 0;
+		rds_count++;
+		if(ev || rds_count >= 3) {
+			rds_count = 0;
 			if(gapRole_AdvEnabled) {
 				measured_data.count++;
 				adv_wrk.adv_event = 1;
@@ -933,6 +1078,7 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
 		return(events ^ SBP_CMDDATA);
 	}
 	// Discard unknown events
+
 	return 0;
 }
 
@@ -945,20 +1091,20 @@ uint16_t BLEPeripheral_ProcessEvent( uint8_t task_id, uint16_t events )
  *
  * @return	none
  */
-static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
+void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
-#if DEBUG_INFO
 	hciEvt_CmdComplete_t *pHciMsg;
-#endif
+//LUCA_LOG("simpleBLEPeripheral_ProcessOSALMsg: %d\n",pMsg->event);
 	switch ( pMsg->event ){
+		case GAP_MSG_EVENT:
+	        LUCA_LOG("GAP_MSG_EVENT, %02x\n",((gapEventHdr_t*) pMsg)->opcode);
+    	    break;
 		case HCI_GAP_EVENT_EVENT:{
 			switch( pMsg->status ){
 				case HCI_COMMAND_COMPLETE_EVENT_CODE:
-#if DEBUG_INFO
 					pHciMsg = (hciEvt_CmdComplete_t *)pMsg;
-					LOG("==> HCI_COMMAND_COMPLETE_EVENT_CODE: %x\n", pHciMsg->cmdOpcode);
-					//safeToDealloc = gapProcessHCICmdCompleteEvt( (hciEvt_CmdComplete_t *)pMsg );
-#endif
+					LUCA_LOG("==> HCI_COMMAND_COMPLETE_EVENT_CODE: %x\n", pHciMsg->cmdOpcode);
+					gapProcessHCICmdCompleteEvt( (hciEvt_CmdComplete_t *)pMsg );
 				break;
 
 				default:
@@ -979,6 +1125,7 @@ static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  */
 static void peripheralStateReadRssiCB( int8_t	 rssi )
 {
+	dbg_printf("peripheralStateReadRssiCB: %d\n",rssi);
 	(void)rssi;
 }
 
@@ -993,18 +1140,19 @@ static void peripheralStateReadRssiCB( int8_t	 rssi )
  */
  static void peripheralStateNotificationCB( gaprole_States_t newState )
 {
+	dbg_printf("peripheralStateNotificationCB: %d\n",newState);
 	switch ( newState )
 	{
 		case GAPROLE_STARTED:
-		{
-			LOG("Gaprole_start\n");
+		{		
+			LUCA_LOG("Gaprole_start\n");
 			osal_set_event(simpleBLEPeripheral_TaskID, SBP_RESET_ADV_EVT);
 		}
 		break;
 
 		case GAPROLE_ADVERTISING:
 		{
-			LOG("Gaprole_adversting\n");
+			LUCA_LOG("Gaprole_adversting\n");
 			osal_stop_timerEx(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT);
 			adv_wrk.meas_count = 0;
 		}
@@ -1014,17 +1162,19 @@ static void peripheralStateReadRssiCB( int8_t	 rssi )
 			adv_wrk.adv_event = 0;
 			adv_wrk.meas_count = 0;
 			adv_wrk.adv_reload_count = 1;
+			bthome_data_beacon((void *) gapRole_AdvertData);
 #if (DEV_SERVICES & SERVICE_THS)
 			osal_start_reload_timer(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT, adv_wrk.measure_interval_ms); // 10000 ms
 #else
 			osal_start_reload_timer(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT, cfg.batt_interval*1000);
 #endif
 			HCI_PPLUS_ConnEventDoneNoticeCmd(simpleBLEPeripheral_TaskID, 0);
-			LOG("Gaprole_Connected\n");
+			LUCA_LOG("Gaprole_Connected\n");
 #if (DEV_SERVICES & SERVICE_SCREEN)
 			show_ble_symbol(1);
 			update_lcd();
 #endif
+/**/
 		break;
 
 		case GAPROLE_CONNECTED_ADV:
@@ -1032,15 +1182,19 @@ static void peripheralStateReadRssiCB( int8_t	 rssi )
 		break;
 
 		case GAPROLE_WAITING:
-			LOG("Gaprole_Disconnection\n");
-			osal_stop_timerEx(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT);
+			LUCA_LOG("Gaprole_Disconnection\n");
+			#if (DEV_SERVICES & SERVICE_THS)
+			osal_start_reload_timer(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT, adv_wrk.measure_interval_ms); // 10000 ms
+#else
+			osal_start_reload_timer(simpleBLEPeripheral_TaskID, TIMER_BATT_EVT, cfg.batt_interval*1000);
+#endif
 			bthome_data_beacon((void *) gapRole_AdvertData);
 #if 1 //FIX_CONN_INTERVAL
 			gapRole_SlaveLatency = periConnParameters.latency = cfg.connect_latency;
 #else
 			gapRole_SlaveLatency = cfg.connect_latency;
 #endif
-			adv_wrk.adv_event = 0;
+			//adv_wrk.adv_event = 0;
 			adv_wrk.meas_count = 0;
 			adv_wrk.adv_reload_count = 1;
 #if (DEV_SERVICES & SERVICE_SCREEN)
@@ -1054,18 +1208,18 @@ static void peripheralStateReadRssiCB( int8_t	 rssi )
 		break;
 
 		case GAPROLE_WAITING_AFTER_TIMEOUT:
-			LOG("Gaprole_waitting_after_timerout\n");
+		LUCA_LOG("Gaprole_waitting_after_timerout\n");
 		break;
 
 		case GAPROLE_ERROR:
-			LOG("Gaprole error!\n");
+		LUCA_LOG("Gaprole error!\n");
 		break;
 
 		default:
 		break;
 	}
 	gapProfileState = newState;
-	LOG("[GAP ROLE %d]\n",newState);
+	LUCA_LOG("[GAP ROLE %d]\n",newState);
 
 //	VOID gapProfileState;
 }

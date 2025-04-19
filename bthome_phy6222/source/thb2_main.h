@@ -23,7 +23,7 @@ extern "C"
 /*********************************************************************
  * CONSTANTS
  */
-#define DEF_ADV_INERVAL  			8000 // = 5 sec, actual time = advInt * 625us
+#define DEF_ADV_INERVAL  			2000 // = 5 sec, actual time = advInt * 625us
 #define DEF_ADV_INERVAL_MS 			((DEF_ADV_INERVAL*625)/1000) // 5000 ms
 
 #define DEF_CON_ADV_INTERVAL 		2500 // 1.5625 sec
@@ -45,7 +45,7 @@ extern "C"
 #define RDS_EVENT_START_SEC		(RDS_EVENT_STEP_SEC - 120) // передача (дублирование состояния) RDS от старта питания - 2 минуты
 
 // How often to perform periodic event
-#define SBP_PERIODIC_EVT_PERIOD		5000
+#define SBP_PERIODIC_EVT_PERIOD		1000
 
 #define DEVINFO_SYSTEM_ID_LEN		8
 #define DEVINFO_SYSTEM_ID			0
@@ -69,6 +69,8 @@ extern "C"
 #define BUZZER_TONE_EVT       0x0100  // Buzzer new tone
 #define KEY_CHANGE_EVT        0x0200  // Key press/release event from interrupt
 #define LCD_TIMER_EVT         0x0400  // Timer related to display sleep and key long press feature expired
+#define	ROTATE_MAC_EVT				0x0800  // rotate mac
+#define	WAIT_FOR_PAIRING_EVT	0x1000  // wait for pairing
 
 /*********************************************************************
  * MACROS
@@ -83,7 +85,7 @@ extern "C"
 *********************************************************************/
 
 #define MAC_LEN		6
-extern uint8 ownPublicAddr[MAC_LEN];
+extern uint8_t ownPublicAddr[MAC_LEN];
 extern uint8_t	simpleBLEPeripheral_TaskID;	  // Task ID for internal task/event processing
 
 void SimpleBLEPeripheral_Init( uint8_t task_id );

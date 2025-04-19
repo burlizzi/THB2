@@ -11,7 +11,9 @@
 
 
 **************************************************************************************************/
-
+#define HOST_CONFIG 0x01
+#define CENTRAL_CFG 0x01
+#define PERIPHERAL_CFG 0x01
 #if ( HOST_CONFIG & ( CENTRAL_CFG | PERIPHERAL_CFG ) )
 
 /*********************************************************************
@@ -33,7 +35,7 @@
 // #define osal_snv_write( a, b, c )      (1)
 // #define osal_snv_read( a, b, c )       (1)
 // #define osal_snv_compact( a )          (1)
-#define BOND_LOG(...)
+#define BOND_LOG LUCA_LOG
 //#define BOND_LOG   LOG
 
 /*********************************************************************
@@ -892,11 +894,13 @@ bStatus_t GAPBondMgr_PasscodeRsp( uint16 connectionHandle, uint8 status, uint32 
 
         if ( ret != SUCCESS )
         {
+            dbg_printf("GAPBondMgr_PasscodeRsp:GAP_PasscodeUpdate fail\n");
             VOID GAP_TerminateAuth( connectionHandle, SMP_PAIRING_FAILED_PASSKEY_ENTRY_FAILED );
         }
     }
     else
     {
+        dbg_printf("GAPBondMgr_PasscodeRsp:GAP_TerminateAuth\n");
         VOID GAP_TerminateAuth( connectionHandle, status );
     }
 
@@ -911,6 +915,7 @@ bStatus_t GAPBondMgr_PasscodeRsp( uint16 connectionHandle, uint8 status, uint32 
 */
 uint8 GAPBondMgr_ProcessGAPMsg( gapEventHdr_t* pMsg )
 {
+    LUCA_LOG("GAPBondMgr_ProcessGAPMsg :%02x\n",pMsg->opcode);
     switch ( pMsg->opcode )
     {
     case GAP_PASSKEY_NEEDED_EVENT:
@@ -919,14 +924,17 @@ uint8 GAPBondMgr_ProcessGAPMsg( gapEventHdr_t* pMsg )
 
         if ( pGapBondCB && pGapBondCB->passcodeCB )
         {
+            LUCA_LOG("GAPBondMgr_ProcessGAPMsg:passcodeCB\n");
             // Ask app for a passcode
             pGapBondCB->passcodeCB( pPkt->deviceAddr, pPkt->connectionHandle, pPkt->uiInputs, pPkt->uiOutputs );
         }
         else
         {
+            LUCA_LOG("GAPBondMgr_ProcessGAPMsg:GAP_PasscodeUpdate\n");
             // No app support, use the default passcode
             if ( GAP_PasscodeUpdate( gapBond_Passcode, pPkt->connectionHandle ) != SUCCESS )
             {
+                LUCA_LOG("GAPBondMgr_ProcessGAPMsg:fail\n");
                 VOID GAP_TerminateAuth( pPkt->connectionHandle, SMP_PAIRING_FAILED_PASSKEY_ENTRY_FAILED );
             }
         }
@@ -1062,16 +1070,19 @@ uint8 GAPBondMgr_ProcessGAPMsg( gapEventHdr_t* pMsg )
 
         if ( gapBond_AutoFail != FALSE )
         {
+            LUCA_LOG("GAPBondMgr_ProcessGAPMsg:GAP_TerminateAuth\n");
             // Auto Fail TEST MODE (DON'T USE THIS) - Sends pre-setup reason
             VOID GAP_TerminateAuth( pPkt->connectionHandle, gapBond_AutoFailReason );
         }
         else if ( gapBond_PairingMode[pPkt->connectionHandle] == GAPBOND_PAIRING_MODE_NO_PAIRING )
         {
+            LUCA_LOG("GAPBondMgr_ProcessGAPMsg:GAP_TerminateAuth\n");
             // No Pairing - Send error
             VOID GAP_TerminateAuth( pPkt->connectionHandle, SMP_PAIRING_FAILED_NOT_SUPPORTED );
         }
         else
         {
+            LUCA_LOG("GAPBondMgr_ProcessGAPMsg:linkDB_Find\n");
             linkDBItem_t* pLinkItem = linkDB_Find( pPkt->connectionHandle );
 
             // Requesting bonding?
@@ -1856,7 +1867,7 @@ uint16 GAPBondMgr_ProcessEvent( uint8 task_id, uint16 events )
 static uint8 gapBondMgr_ProcessOSALMsg( osal_event_hdr_t* pMsg )
 {
     uint8 safeToDealloc = TRUE;
-
+    LUCA_LOG("gapBondMgr_ProcessOSALMsg: %d\n", pMsg->event);
     switch ( pMsg->event )
     {
     case GAP_MSG_EVENT:
@@ -2075,7 +2086,8 @@ static void gapBondMgrAuthenticate( uint16 connHandle, uint8 addrType,
     params.secReqs.authReq |= (gapBond_SC) ? SM_AUTH_STATE_SC : 0;
     params.secReqs.authReq |= (gapBond_keyPress) ? SM_AUTH_STATE_KEYPRESS : 0;
     params.secReqs.authReq |= (gapBond_CT2) ? SM_AUTH_STATE_CT2 : 0;
-    GAP_Authenticate( &params, pPairReq );
+    bStatus_t ret=GAP_Authenticate( &params, pPairReq );
+    LUCA_LOG("gapBondMgrAuthenticate: %d\n", ret);
 }
 
 #if ( HOST_CONFIG & PERIPHERAL_CFG )

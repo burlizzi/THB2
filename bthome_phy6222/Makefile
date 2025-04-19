@@ -11,6 +11,7 @@ SRC_PRJ += battery.c
 SRC_PRJ += battservice.c
 SRC_PRJ += ccm.c
 SRC_PRJ += bthome_beacon.c
+#SRC_PRJ += ecc.c
 SRC_PRJ += findmy_beacon.c
 SRC_PRJ += osal_peripheral.c
 SRC_PRJ += peripheral_main.c
@@ -33,6 +34,10 @@ SRC_PRJ += lcd_th04.c
 SRC_PRJ += ble_ota.c
 SRC_PRJ += logger.c
 SRC_PRJ += buzzer.c
+SRC_PRJ += uECC.c
+SRC_PRJ += aes.c
+SRC_PRJ += fastpairservice.c
+SRC_PRJ += ringservice.c
 
 INCLUDES = -I$(SRC_PATH)
 
@@ -45,13 +50,16 @@ DEFINES += -DCFG_SLEEP_MODE=PWR_MODE_SLEEP
 DEFINES += -DDEBUG_INFO=0
 DEFINES += -DMTU_SIZE=240
 DEFINES += -DMAX_NUM_LL_CONN=1
-DEFINES += -DDEF_GAPBOND_MGR_ENABLE=0
-
+DEFINES += -DDEF_GAPBOND_MGR_ENABLE=1
+DEFINES += -DuECC_ENABLE_VLI_API=1
 #Debug:
 DEFINES += -DTEST_RTC_DELTA=1
 DEFINES += -DLL_DEBUG_NONE=1 
 DEFINES += -DCLK_16M_ONLY=1
 DEFINES += -DSTACK_MAX_SRAM=1
+DEFINES += -DuECC_WORD_SIZE=4
+DEFINES += -DNEARBY_TRACE_LEVEL=1
+
 #if Flash HS
 #DEFINES += -DXFLASH_HIGH_SPEED=1
 
@@ -60,7 +68,7 @@ DEFINES += -DBROADCASTER_CFG=0x01
 DEFINES += -DOBSERVER_CFG=0x02 
 DEFINES += -DPERIPHERAL_CFG=0x04 
 DEFINES += -DCENTRAL_CFG=0x08 
-DEFINES += -DHOST_CONFIG=0x04
+DEFINES += -DHOST_CONFIG=0x07
 
 DEFINES += -DARMCM0
 DEFINES += -DOSAL_CBTIMER_NUM_TASKS=1 
@@ -73,7 +81,8 @@ DEFINES += -DOSALMEM_METRICS=0
 DEFINES += -DPHY_MCU_TYPE=MCU_BUMBEE_M0
 
 #osal_snv.c:
-DEFINES += -DUSE_FS=0
+DEFINES += -DUSE_FS=1
+#DEFINES += -DEXT_ADV_ENABLE=1
 
 #Not used:
 #DEFINES += -D_RTE_
@@ -93,6 +102,7 @@ DEFINES += -DUSE_FS=0
 BIN_DIR = ./bin
 OBJ_DIR = ./build
 SDK_PATH = ./SDK
+NEARBY_PATH = ./nearby
 PYTHON = python3
 GCC_PATH = 
 CC = $(GCC_PATH)arm-none-eabi-gcc
@@ -133,7 +143,7 @@ endif
 LDFLAGS    := $(ARCH_FLAGS)
 LDFLAGS    += --static -nostartfiles -nostdlib
 LDFLAGS    += -Wl,--gc-sections
-LDFLAGS    += -Wl,--script=$(LDSCRIPT)
+LDFLAGS    += -Wl,--script=$(LDSCRIPT) -L SDK/lib
 # LDFLAGS    += -Wl,--no-warn-rwx-segments
 LDFLAGS    += -Wl,--just-symbols=$(SDK_PATH)/misc/bb_rom_sym_m0.gcc
 LDFLAGS    += -Wl,-Map=$(OBJ_DIR)/$(PROJECT_NAME).map 
@@ -176,9 +186,14 @@ INCLUDES += -I$(SDK_PATH)/components/driver/voice
 INCLUDES += -I$(SDK_PATH)/components/driver/watchdog
 INCLUDES += -I$(SDK_PATH)/components/libraries/crc16
 INCLUDES += -I$(SDK_PATH)/components/libraries/cliface
-#INCLUDES += -I$(SDK_PATH)/components/libraries/fs
+INCLUDES += -I$(SDK_PATH)/components/libraries/fs
 INCLUDES += -I$(SDK_PATH)/components/driver/watchdog
-
+INCLUDES += -I$(SDK_PATH)/components/libraries/tinycrypt-0.2.8/lib/include
+INCLUDES += -I$(NEARBY_PATH)/client/source
+INCLUDES += -I$(NEARBY_PATH)/common/source
+INCLUDES += -I$(NEARBY_PATH)/common/source/mbedtls
+INCLUDES += -I$(NEARBY_PATH)/common/target
+INCLUDES += -I$(NEARBY_PATH)/common/target/arm
 ###########################################
 # LIBs
 SRCS += $(SDK_PATH)/lib/rf/patch.c
@@ -239,16 +254,33 @@ SRCS += $(SDK_PATH)/components/driver/log/my_printf.c
 #SRCS += $(SDK_PATH)/components/profiles/Roles/central.c
 #SRCS += $(SDK_PATH)/components/profiles/ota_app/ota_app_service.c
 #SRCS += $(SDK_PATH)/components/profiles/Roles/peripheral.c
+#SRCS += $(SDK_PATH)/lib/ble_host/gap_task.c
 SRCS += $(SDK_PATH)/components/profiles/Roles/gap.c
 SRCS += $(SDK_PATH)/components/profiles/Roles/gapbondmgr.c
 SRCS += $(SDK_PATH)/components/profiles/Roles/gapgattserver.c
 SRCS += $(SDK_PATH)/components/profiles/GATT/gattservapp.c
 #SRCS += $(SDK_PATH)/components/profiles/DevInfo/devinfoservice.c
 
-#SRCS += $(SDK_PATH)/components/osal/snv/osal_snv.c
-#SRCS += $(SDK_PATH)/components/libraries/fs/fs.c
+SRCS += $(SDK_PATH)/components/osal/snv/osal_snv.c
+SRCS += $(SDK_PATH)/components/libraries/fs/fs.c
 
 SRCS += $(SDK_PATH)/misc/jump_table.c
+
+SRCS += $(NEARBY_PATH)/client/source/nearby_fp_client.c
+#SRCS += $(NEARBY_PATH)/common/source/mbedtls/gen_secret.c
+#SRCS += $(NEARBY_PATH)/common/source/mbedtls/mbedtls.c
+SRCS += $(NEARBY_PATH)/common/source/nearby_fp_library.c
+SRCS += $(NEARBY_PATH)/common/source/nearby_message_stream.c
+SRCS += $(NEARBY_PATH)/common/source/nearby_utils.c
+
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_ble.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_bt.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_se.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_trace.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_persistence.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_battery.c
+SRCS += $(NEARBY_PATH)/common/target/arm/nearby_platform_os.c
+
 
 ##############################################################################
 
@@ -266,7 +298,7 @@ CFLAGS  += $(DEFINES) $(INCLUDES)
 #SRC_O = $(patsubst %.c,%.o,$(patsubst sdk/%, $(SDK_PATH)%, $(SRCS)))
 
 SRC_O = $(SRCS:%.c=%.o) $(STARTUP_ASM:%.s=%.o)
-OBJS = $(patsubst %, $(OBJ_DIR)/%, $(patsubst ./%, %, $(SRC_O)))
+OBJS = $(patsubst %, $(OBJ_DIR)/%, $(patsubst ./%, %, $(SRC_O))) 
 
 DEPENDENCY_LIST = $(OBJS:%o=%d)
 

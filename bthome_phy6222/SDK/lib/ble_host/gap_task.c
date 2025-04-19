@@ -65,7 +65,7 @@ static const gapCentralCBs_t* pfnCentralCBs = NULL;
 */
 static uint8 gapProcessOSALMsg( osal_event_hdr_t* pMsg );
 static uint8 gapProcessBLEEvents( osal_event_hdr_t* pMsg );
-static uint8 gapProcessHCICmdCompleteEvt( hciEvt_CmdComplete_t* pMsg );
+ uint8 gapProcessHCICmdCompleteEvt( hciEvt_CmdComplete_t* pMsg );
 static uint8 gapProcessCommandStatusEvt( hciEvt_CommandStatus_t* pMsg );
 
 /*********************************************************************
@@ -121,9 +121,10 @@ uint16 GAP_ProcessEvent( uint8 task_id, uint16 events )
     if ( events & SYS_EVENT_MSG )
     {
         uint8* pMsg;
-
+        LUCA_LOG("GAP_ProcessEvent SYS_EVENT_MSG\n");
         if ( (pMsg = osal_msg_receive( gapTaskID )) != NULL )
         {
+            LUCA_LOG("GAP_ProcessEvent SYS_EVENT_MSG osal_msg_receive\n");
             if ( !gapProcessOSALMsg( (osal_event_hdr_t*)pMsg ) )
             {
                 // Send it to the registered application.
@@ -249,6 +250,7 @@ static uint8 gapProcessOSALMsg( osal_event_hdr_t* pMsg )
     {
     case HCI_GAP_EVENT_EVENT:
     {
+        LUCA_LOG("HCI_GAP_EVENT_EVENT %02x\n",pMsg->status);
         switch( pMsg->status )
         {
         case HCI_COMMAND_COMPLETE_EVENT_CODE:
@@ -362,10 +364,10 @@ static uint8 gapProcessBLEEvents( osal_event_hdr_t* pMsg )
     @return  TRUE if processed and safe to deallocate, FALSE if passed
             off to another task.
 */
-static uint8 gapProcessHCICmdCompleteEvt( hciEvt_CmdComplete_t* pMsg )
+uint8 gapProcessHCICmdCompleteEvt( hciEvt_CmdComplete_t* pMsg )
 {
     uint8 safeToDealloc = TRUE;
-
+    LUCA_LOG("gapProcessHCICmdCompleteEvt %02x\n",pMsg->cmdOpcode);
     switch ( pMsg->cmdOpcode )
     {
     case HCI_LE_SET_RANDOM_ADDR:

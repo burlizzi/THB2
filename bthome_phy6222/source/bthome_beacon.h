@@ -119,6 +119,8 @@ typedef struct __attribute__((packed)) _adv_bthome_data1_t {
 	uint16		humidity; // x 0.01 %
 	uint8		v_id;	// = BtHomeID_voltage
 	uint16		battery_mv; // x 0.001 V
+	uint8		m_id;	// = BtHomeID_motion
+	uint8		motion; 
 } adv_bthome_data1_t, * padv_bthome_data1_t; // size: 11
 
 typedef struct __attribute__((packed)) _adv_bthome_data2_t {
@@ -137,6 +139,9 @@ typedef struct __attribute__((packed)) _adv_bthome_data2_t {
 	uint8_t		c_id;	// = BtHomeID_count32
 	uint32_t	counter;
 #endif
+	uint8		m_id;	// = BtHomeID_motion
+	uint8		motion; 
+
 } adv_bthome_data2_t, * padv_bthome_data2_t; // size: 5
 
 typedef struct __attribute__((packed)) _adv_bthome_event1_t {
@@ -149,6 +154,8 @@ typedef struct __attribute__((packed)) _adv_bthome_event1_t {
 #endif
 	uint8_t		c_id;	// = BtHomeID_count32
 	uint32_t	counter;
+	uint8_t		m_id;	// = BtHomeID_count32
+	uint32_t	motion;
 } adv_bthome_event1_t, * padv_bthome_event1_t; // size: 7
 
 

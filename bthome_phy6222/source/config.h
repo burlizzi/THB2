@@ -60,7 +60,7 @@
 #define DEVICE_TH04 	34
 
 #ifndef DEVICE
-#define DEVICE		DEVICE_TH05F
+#define DEVICE		DEVICE_KEY2
 #endif
 
 // supported services by the device (bits)
@@ -398,20 +398,25 @@
 #define ADC_PIN				GPIO_P11
 #define ADC_VBAT_CHL		VBAT_ADC_P11
 
-#define GPIO_KEY	GPIO_P15
-#define KEY_PRESSED	1
-#define GPIO_LED	GPIO_P03
+#define GPIO_KEY	GPIO_P14
+#define KEY_PRESSED	0
+//#define GPIO_LED	GPIO_P03
 #define LED_ON		1
 #define LED_OFF		0
 
-#define GPIO_BUZZER	   GPIO_P09
+#define GPIO_BUZZER	   GPIO_P34
 #define PWM_CHL_BUZZER PWM_CH0
 #define BUZZER_ON	1
 #define BUZZER_OFF	0
 
+#define I2C_SDA 	GPIO_P03
+#define I2C_SCL 	GPIO_P02
+
+
+
 //#define GPIO_INP	GPIO_P15
 
-#define DEF_MODEL_NUMBER_STR		"KEY"
+#define DEF_MODEL_NUMBER_STR		"KeY"
 #define DEF_HARDWARE_REVISION		"0020"
 #define DEF_MANUFACTURE_NAME_STR	"DIY"
 
@@ -553,14 +558,13 @@ inline uint32 clock_time_rtc(void) {
 	return tick; } // (*(volatile unsigned int*)0x4000f028); }// & 0xffffff; // max 512 sec
 #endif
 // uint32_t get_delta_time_rtc(uint32_t start_time_rtc);
-
 typedef struct _clock_time_t {
-	uint32_t utc_time_sec; // utc, sec 01 01 1970
-	uint32_t utc_time_add; // add
-	uint32_t utc_time_tik; // old rtc tik, in 32768 Hz
-	uint32_t utc_set_time_sec; // время установки utc_time_sec
+	uint32_t utc_time_sec; // UTC time in seconds since 01/01/1970
+	uint32_t utc_time_add; // additional time
+	uint32_t utc_time_tik; // old RTC tick, in 32768 Hz
+	uint32_t utc_set_time_sec; // time when UTC time was set
 #if (DEV_SERVICES & SERVICE_TIME_ADJUST)
-	int32_t delta_time; // коррекция времени rtc
+	int32_t delta_time; // time correction for RTC
 #endif
 } clock_time_t;
 extern clock_time_t clkt;

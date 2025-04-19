@@ -200,6 +200,7 @@ static uint8 gapProcessOSALMsg( osal_event_hdr_t* pMsg )
     {
     case HCI_GAP_EVENT_EVENT:
     {
+        LUCA_LOG("HCI_GAP_EVENT_EVENT %02x\n",pMsg->status);
         switch( pMsg->status )
         {
         case HCI_COMMAND_COMPLETE_EVENT_CODE:
@@ -271,7 +272,7 @@ static uint8 gapProcessBLEEvents( osal_event_hdr_t* pMsg )
 static uint8 gapProcessHCICmdCompleteEvt( hciEvt_CmdComplete_t* pMsg )
 {
     uint8 safeToDealloc = TRUE;
-
+    LUCA_LOG("gapProcessHCICmdCompleteEvt %02x\n",pMsg->cmdOpcode);
     switch ( pMsg->cmdOpcode )
     {
     case HCI_LE_SET_RANDOM_ADDR:

@@ -48,11 +48,12 @@ uint8 osal_snv_compact( uint8 threshold )
 #else
 
 #include "fs.h"
-
+signed short flash_read_cfg(void *ptr, unsigned short id, unsigned short maxsize);
+bool flash_write_cfg(void *ptr, unsigned short id, unsigned short size);
 uint8 osal_snv_init( void )
 {
-    if(!hal_fs_initialized())
-        return NV_OPER_FAILED;
+   // if(!hal_fs_initialized())
+     //   return NV_OPER_FAILED;
 
     return SUCCESS;
 }
@@ -60,12 +61,12 @@ uint8 osal_snv_init( void )
 uint8 osal_snv_read( osalSnvId_t id, osalSnvLen_t len, void* pBuf)
 {
     int ret;
-    // LOG("osal_snv_read:%x\n",id);
-    ret = hal_fs_item_read((uint16_t)id,(uint8_t*) pBuf, (uint16_t)len,NULL);
-
+    LUCA_LOG("osal_snv_read:%x\n",id);
+    //ret = hal_fs_item_read((uint16_t)id,(uint8_t*) pBuf, (uint16_t)len,NULL);
+    ret = flash_read_cfg(pBuf, id, len);
     if(ret != PPlus_SUCCESS)
     {
-        // LOG("rd_ret:%d\n",ret);
+        LUCA_LOG("rd_ret:%d\n",ret);
         return NV_OPER_FAILED;
     }
 
@@ -78,7 +79,7 @@ uint8 osal_snv_write( osalSnvId_t id, osalSnvLen_t len, void* pBuf)
     int ret = PPlus_SUCCESS;
     // LOG("osal_snv_write:%x,%d\n",id,len);
     // LOG_DUMP_BYTE(pBuf, len);
-
+/*
     if(hal_fs_get_free_size() < len+32)
     {
         if(hal_fs_get_garbage_size(NULL) > len+32)
@@ -92,7 +93,8 @@ uint8 osal_snv_write( osalSnvId_t id, osalSnvLen_t len, void* pBuf)
     }
 
     ret = hal_fs_item_write((uint16_t) id, (uint8_t*) pBuf, (uint16_t) len);
-
+/* */
+    ret= flash_write_cfg(pBuf, id, len);
     if(ret !=0)
     {
         // LOG("wr_ret:%d\n",ret);

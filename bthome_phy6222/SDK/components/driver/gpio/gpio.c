@@ -129,6 +129,8 @@ static int hal_gpio_interrupt_disable(gpio_pin_e pin)
 
 void hal_gpio_write(gpio_pin_e pin, uint8_t en)
 {
+    if (pin==1)
+    log_printf("1:%d\n",en);
 #if TEST_PIN_NUM
     if (pin > (NUMBER_OF_PINS - 1))
         return;

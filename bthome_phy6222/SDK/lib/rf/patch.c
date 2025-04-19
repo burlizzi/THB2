@@ -8661,7 +8661,8 @@ hciStatus_t HCI_LE_LtkReqReplyCmd( uint16 connHandle,
     rtnParam[0] = LL_EncLtkReply( connHandle, ltk );
     rtnParam[1] = LO_UINT16( connHandle );
     rtnParam[2] = HI_UINT16( connHandle );
-    HCI_CommandCompleteEvent( HCI_LE_LTK_REQ_REPLY, sizeof(rtnParam), rtnParam );
+    LUCA_LOG("HCI_LE_LtkReqReplyCmd %d\n", rtnParam[0]);
+    //HCI_CommandCompleteEvent( HCI_LE_LTK_REQ_REPLY, sizeof(rtnParam), rtnParam );
     return ( HCI_SUCCESS );
 }
 

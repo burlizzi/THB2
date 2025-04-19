@@ -167,7 +167,7 @@ API_RESULT cli_get_information(UINT32 argc, UCHAR* argv[])
     }
 
     MS_access_cm_get_features(&features);
-    dbg_printf("[ATMSH81]%04X%02X",addr,features);
+    LUCA_LOG("[ATMSH81]%04X%02X",addr,features);
     return API_SUCCESS;
 }
 

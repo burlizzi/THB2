@@ -48,9 +48,11 @@ typedef void(*std_putc)(char* data, uint16_t size);
 #define AT_LOG(...)
 #define LOG_DEBUG(...)
 #define LOG(...)
-#define LOG_INIT()  //{clk_gate_enable(MOD_UART);clk_reset(MOD_UART);clk_gate_disable(MOD_UART);}
+#define LOG_INIT() dbg_printf_init() //{clk_gate_enable(MOD_UART);clk_reset(MOD_UART);clk_gate_disable(MOD_UART);}
 #define LOG_DUMP_BYTE(a,b)
 #endif
+#define LUCA_LOG(...) 
+//dbg_printf(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

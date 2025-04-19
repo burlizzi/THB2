@@ -110,9 +110,9 @@ static bStatus_t ble_disc_service(gattMsgEvent_t* pMsg)
     // Stores the error code, should the discovery process fail at any state.
     uint8_t errorcode = 0;
 
-    //if(pMsg){
-    //  LOG("ble_disc_service->pMsg->method: 0x%x\n",pMsg->method);
-    //}
+    if(pMsg){
+      LOG("ble_disc_service->pMsg->method: 0x%x\n",pMsg->method);
+    }
     // Enter the state machine.
     switch (pctx->disc_state)
     {

@@ -1067,26 +1067,26 @@ void multiRolePasscodeCB( uint8* deviceAddr, uint16 connectionHandle,
                           uint8 uiInputs, uint8 uiOutputs )
 {
     uint32 passcode = 0;
-    LOG("pass code CB connHandle 0x%02X,uiInputs:0x%x,uiOutputs:0x%x\n",connectionHandle,uiInputs,uiOutputs);
+    dbg_printf("pass code CB connHandle 0x%02X,uiInputs:0x%x,uiOutputs:0x%x\n",connectionHandle,uiInputs,uiOutputs);
     GAPBondMgr_GetParameter( GAPBOND_DEFAULT_PASSCODE,&passcode);
-    LOG("passcode %d\n",passcode);
-//    GAP_PasscodeUpdate(passcode,connectionHandle);
+    dbg_printf("passcode1 %d\n",passcode);
+    GAP_PasscodeUpdate(passcode,connectionHandle);
     GAPBondMgr_PasscodeRsp(connectionHandle,SUCCESS,passcode);
 }
 void multiRolePairStateCB( uint16 connHandle, uint8 state, uint8 status )
 {
-    LOG("PairStateCB handle 0x%02X,status %d,state 0x%X\n",connHandle,status,state);
+    dbg_printf("PairStateCB handle 0x%02X,status %d,state 0x%X\n",connHandle,status,state);
 
     if ( state == GAPBOND_PAIRING_STATE_STARTED )
     {
-        LOG( "Pairing started connHandle %d\n",connHandle);
+        dbg_printf( "Pairing started connHandle %d\n",connHandle);
     }
     else if (( state == GAPBOND_PAIRING_STATE_COMPLETE ) || ( state == GAPBOND_PAIRING_STATE_BONDED ) )
     {
         if ( status == SUCCESS )
         {
             #if( MAX_CONNECTION_MASTER_NUM > 0 )
-            LOG( "Pairing & Bonding success,connHandle %d , and start SDP \n",connHandle);
+            dbg_printf( "Pairing & Bonding success,connHandle %d , and start SDP \n",connHandle);
             GAPMultiRole_CentralSDP_t sdp_node;
             osal_memset(&sdp_node, 0,sizeof(GAPMultiRole_CentralSDP_t));
             sdp_node.connHandle = connHandle;

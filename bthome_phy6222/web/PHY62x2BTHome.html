@@ -590,7 +590,7 @@ div#divChart {
 			CORRECT_DEVICENAME_LENGTH: { en: 'Save DeviceName...', ru: 'Сохранение имени устройства...' },
 			INVALID_DEVICENAME_LENGTH: { en: 'Devicename length must be 1 to 19 bytes (UTF-8 characters consume 2 bytes)', ru: 'Имя устройства должно быть от 1 до 19 символов, включая кодирование UTF-8' },
 			INVALID_BINDKEY_LENGTH: { en: 'Bindkey must be 16 bytes, hex encoded (=32 characters)', ru: 'BindKey должен соднержать 16 байт в HEX виде (32 символа)' },
-			INVALID_FINDMYKEY_LENGTH: { en: 'FindMyKey must be 28 bytes, Format Base64', ru: 'BindKey должен содержать 28 байта, формат Base64' },
+			INVALID_FINDMYKEY_LENGTH: { en: 'FindMyKey must be 36 bytes, Format Base64', ru: 'BindKey должен содержать 28 байта, формат Base64' },
 			UPLOAD_FIRMWARE: { en: 'Download firmware file', ru: 'Загрузка firmware файла' },
 			WARNING_BOOT_FW: { en: 'Attention!: Uploading boot FW is not safe. In order to avoid firmware failure use a fresh battery!', ru: 'Внимание!: Обновление  Boot fw не безопасно. Во избежание сбоя прошивки желательно использование полной батареи!' },
 			MEMO_OFF: {en: 'Disabled', ru: 'Отключено'},
@@ -1556,11 +1556,23 @@ function parseBlkCustom(value) {
 			+ ", He: " + ((flg&32)? 1:0);
 			if(len > 14) {
 				devTime.cur = value.getUint32(11,true);
-				//console.log('Device Time: 0x' + hex(devtime.cur, 8));
+				console.log((devTime.cur));
 				let dt = new Date(devTime.cur * 1000);
-				let sDateTime = (dt.toISOString().slice(0, -5)).replace('T',' ');
+				let sDateTime = dt.toLocaleString();
 				$('lblTime').innerHTML = sDateTime;
-				let	time = Date.now() / 1000 - (new Date()).getTimezoneOffset() * 60;
+				const now = new Date();
+				const utcTime = now.toUTCString(); // Converts to a UTC string
+				console.log(utcTime); // Example: "Mon, 30 Oct 2023 12:34:56 GMT"
+
+				const time = Date.UTC(
+					now.getUTCFullYear(),
+					now.getUTCMonth(),
+					now.getUTCDate(),
+					now.getUTCHours(),
+					now.getUTCMinutes(),
+					now.getUTCSeconds(),
+					now.getUTCMilliseconds()
+				)/1000;				
 				delta = devTime.cur - time;
 				console.log(`${i18n.getTag('TIME_ON_DEVICE')}: ${sDateTime}, ${i18n.getTag('DIFFERENCE')}: ${Math.round(delta)} ${i18n.getTag('SECONDS')}`);
 				$('lbDeltaTime').innerHTML = `${i18n.getTag('DIFFERENCE')}: ${Math.round(delta)} ${i18n.getTag('SECONDS')}`;
@@ -1675,25 +1687,25 @@ function parseBlkCustom(value) {
 			console.log('blk: ' + dump8(value, value.byteLength));
 			$("inpBindKey").value = i18n.getTag('NOT_SUPPORTED');
 		}
-	} else if(blkId == 0x19 && len >= 1) { // Get/set findmy bkey in EEP
+	} else if(blkId == 0x1c && len >= 1) { // Get/set findmy bkey in EEP
 			console.log('blk: ' + dump8(value, value.byteLength));
 			let cid = value.getUint8(1);
 			if(cid == 1) {
-				devKeys.cfindmykey_tmp = value.buffer.slice(2,16);
-				cmdCharacteristic.writeValue(new Uint8Array([0x19, 2])).catch(error => { addLog("setFindMyKey() Error: " + error); });
-			} else if(cid == 3 && len == 16) {
-				devKeys.cfindmykey_tmp = value.buffer.slice(2,16);
-				let blk = new Uint8Array(16);
-				blk.set(devKeys.cfindmykey.slice(14),2);
-				blk[0] = 0x19;
+				devKeys.cfindmykey_tmp = value.buffer.slice(2,2+18);
+				cmdCharacteristic.writeValue(new Uint8Array([0x1c, 2])).catch(error => { addLog("setFindMyKey() Error: " + error); });
+			} else if(cid == 3 && len == (2+18)) {
+				devKeys.cfindmykey_tmp = value.buffer.slice(2,2+18);
+				let blk = new Uint8Array(18+2);
+				blk.set(devKeys.cfindmykey.slice(18),2);
+				blk[0] = 0x1c;
 				blk[1] = 4;
 				cmdCharacteristic.writeValue(blk).catch(error => { addLog("setFindMyKey() Error: " + error); });
-			} else if(cid == 2 || (cid == 4 && len == 16)) {
+			} else if(cid == 2 || (cid == 4 && len == (2+18))) {
 				//addLog("### "+ bytesToHex(devKeys.cfindmykey_tmp, 14) + bytesToHex(value.buffer.slice(2,16), 14));
-				devKeys.cfindmykey = new Uint8Array(28);
+				devKeys.cfindmykey = new Uint8Array(36);
 				devKeys.cfindmykey.set(new Uint8Array(devKeys.cfindmykey_tmp));
-				devKeys.cfindmykey.set(new Uint8Array(value.buffer.slice(2,16)), 14);
-				addLog("FindMy key # "+ bytesToHex(devKeys.cfindmykey, 28));
+				devKeys.cfindmykey.set(new Uint8Array(value.buffer.slice(2,2+18)), 18);
+				addLog("FindMy key # "+ bytesToHex(devKeys.cfindmykey, 36));
 				let s = btoa(String.fromCharCode.apply(null,new Uint8Array(devKeys.cfindmykey)));
 				addLog("FindMy key Base64: "+ s);
 				$("inpFindMyKey").value = s;
@@ -1710,9 +1722,21 @@ function parseBlkCustom(value) {
 		devTime.cur = value.getUint32(1,true);
 		console.log('Device Time: 0x' + hex(devTime.cur, 8));
 		let dt = new Date(devTime.cur * 1000);
-		let sDateTime = (dt.toISOString().slice(0, -5)).replace('T',' ');
+		let sDateTime = dt.toLocaleString();
 		$('lblTime').innerHTML = sDateTime
-		let	time = Date.now() / 1000 - (new Date()).getTimezoneOffset() * 60;
+		const now = new Date();
+		const utcTime = now.toUTCString(); // Converts to a UTC string
+		console.log(utcTime); // Example: "Mon, 30 Oct 2023 12:34:56 GMT"
+
+		const time = Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate(),
+			now.getUTCHours(),
+			now.getUTCMinutes(),
+			now.getUTCSeconds(),
+			now.getUTCMilliseconds()
+		)/1000;		
 		let delta = devTime.cur - time;
 		console.log(`${i18n.getTag('TIME_ON_DEVICE')}: ${sDateTime}, ${i18n.getTag('DIFFERENCE')}: ${Math.round(delta)} ${i18n.getTag('SECONDS')}`);
 		$('lbDeltaTime').innerHTML = `${i18n.getTag('DIFFERENCE')}: ${Math.round(delta)} ${i18n.getTag('SECONDS')}`;
@@ -1949,8 +1973,23 @@ function setSensCfg() {
 }
 
 function setDevTime() {
-	let time = Date.now()/1000;
-	time -= (new Date()).getTimezoneOffset() * 60;
+
+	const now = new Date();
+	const utcTime = now.toUTCString(); // Converts to a UTC string
+	console.log(utcTime); // Example: "Mon, 30 Oct 2023 12:34:56 GMT"
+
+	const time = Date.UTC(
+		now.getUTCFullYear(),
+		now.getUTCMonth(),
+		now.getUTCDate(),
+		now.getUTCHours(),
+		now.getUTCMinutes(),
+		now.getUTCSeconds(),
+		now.getUTCMilliseconds()
+	)/1000;
+
+	
+	
 	blk = new Uint8Array(5);
 	blk[0] = 0x23;
 	blk[1] = time & 0xff;
@@ -2113,27 +2152,28 @@ function setBuzzer(m) {
 }
 function getGetFindMyKey() {
 	if(cmdCharacteristic != null) {
-		cmdCharacteristic.writeValue(new Uint8Array([0x19,1])).catch(error => { addLog("getFindmyKey() Error: " + error); });
+		cmdCharacteristic.writeValue(new Uint8Array([0x1c,1])).catch(error => { addLog("getFindmyKey() Error: " + error); });
 	}
 }
 
 function setFindMyKey() {
 	if(cmdCharacteristic != null) {
 		let sk = $("inpFindMyKey").value;
-		if(sk.length > 35) {
+		if(sk.length > 43) {
 			let bk = Uint8Array.from(atob(sk), c => c.charCodeAt(0));
-			if(bk.length == 28) {
+			if(bk.length == 36) {
 				devKeys.cfindmykey = bk;
-				let blk = new Uint8Array(16);
-				blk.set(bk.slice(0,14),2);
-				blk[0] = 0x19;
+				let blk = new Uint8Array(2+18);
+				blk.set(bk.slice(0,18),2);
+				blk[0] = 0x1c;
 				blk[1] = 3;
 				addLog("Send FindMy key # " + bytesToHex(bk));
 				cmdCharacteristic.writeValue(blk).catch(error => { addLog("setFindMyKey() Error: " + error); });
 				return;
 			}
+			addLog(`${i18n.getTag('INVALID_FINDMYKEY_LENGTH')+' bk:'+bk.length}!`)
 		}
-		addLog(`${i18n.getTag('INVALID_FINDMYKEY_LENGTH')}!`)
+		addLog(`${i18n.getTag('INVALID_FINDMYKEY_LENGTH')+' sk:'+sk.length}!`)
 	}
 }
 
@@ -2400,7 +2440,20 @@ function resizeChart() {
 }
 
 window.onload = function() {
+	const now = new Date();
+	const utcTime = now.toUTCString(); // Converts to a UTC string
+	console.log(utcTime); // Example: "Mon, 30 Oct 2023 12:34:56 GMT"
 
+	const utcTimestamp = Date.UTC(
+		now.getUTCFullYear(),
+		now.getUTCMonth(),
+		now.getUTCDate(),
+		now.getUTCHours(),
+		now.getUTCMinutes(),
+		now.getUTCSeconds(),
+		now.getUTCMilliseconds()
+	)/1000;
+	console.log(utcTimestamp); 
 	console.log("Load index file 'fw.json'...");
 	ajax_file('fw.json', getOtaJson);
 	document.querySelector("#inpFile").addEventListener("change", function() {

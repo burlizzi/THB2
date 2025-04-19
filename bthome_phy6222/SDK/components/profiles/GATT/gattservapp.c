@@ -748,6 +748,7 @@ static CONST gattServiceCBs_t* gattServApp_FindServiceCBs( uint16 handle )
 */
 static void gattServApp_ProcessMsg( gattMsgEvent_t* pMsg )
 {
+    LUCA_LOG("pMsg->method:0x%02x\n",pMsg->method);
     uint16 errHandle = GATT_INVALID_HANDLE;
     uint8 status;
     #if defined ( TESTMODES )
@@ -880,6 +881,7 @@ static bStatus_t gattServApp_ProcessFindByTypeValueReq( gattMsgEvent_t* pMsg, ui
     attFindByTypeValueRsp_t* pRsp = &rsp.findByTypeValueRsp;
     gattAttribute_t* pAttr;
     uint16 service;
+    LUCA_LOG("pReq->type.uuid:0x%02x,0x%02x,0x%02x,0x%02x\r\n",pReq->type.uuid[0],pReq->type.uuid[1],pReq->type.uuid[2],pReq->type.uuid[3]);
     // Initialize the response
     VOID osal_memset( pRsp, 0, sizeof( attFindByTypeValueRsp_t ) );
     // Only attributes with attribute handles between and including the Starting
@@ -973,9 +975,11 @@ static bStatus_t gattServApp_ProcessReadByTypeReq( gattMsgEvent_t* pMsg, uint16*
         gattAttribute_t* pAttr;
         // All attribute types are effectively compared as 128-bit UUIDs, even if
         // a 16-bit UUID is provided in this request or defined for an attribute.
+       
+        
         pAttr = GATT_FindHandleUUID( startHandle, pReq->endHandle, pReq->type.uuid,
                                      pReq->type.len, &service );
-
+        
         if ( pAttr == NULL )
         {
             break; // No more attribute found
@@ -1046,6 +1050,12 @@ static bStatus_t gattServApp_ProcessReadByTypeReq( gattMsgEvent_t* pMsg, uint16*
         pRsp->numPairs = dataLen / pRsp->len;
         // Send a response back
         VOID ATT_ReadByTypeRsp( pMsg->connHandle, pRsp );
+       /* for (uint8_t i = 0; i < pRsp->len; i++)
+        {
+           LUCA_LOG("%02x ",pRsp->dataList[i]);
+        }
+        
+        LUCA_LOG("status:0x%08x\r\n",status);*/
         return ( SUCCESS );
     }
 
@@ -1054,7 +1064,7 @@ static bStatus_t gattServApp_ProcessReadByTypeReq( gattMsgEvent_t* pMsg, uint16*
         // Attribute not found -- dataLen must be 0
         status = ATT_ERR_ATTR_NOT_FOUND;
     }
-
+    
     *pErrHandle = startHandle;
     return ( status );
 }
@@ -1239,9 +1249,16 @@ static bStatus_t gattServApp_ProcessReadByGrpTypeReq( gattMsgEvent_t* pMsg, uint
     // All attribute types are effectively compared as 128-bit UUIDs,
     // even if a 16-bit UUID is provided in this request or defined
     // for an attribute.
+    for (uint8_t i = 0; i < pReq->type.len; i++)
+    {
+        LUCA_LOG("0x%02x ",pReq->type.uuid[i]);
+    }
+    
+
     pAttr = GATT_FindHandleUUID( pReq->startHandle, pReq->endHandle,
                                  pReq->type.uuid, pReq->type.len, &service );
 
+    LUCA_LOG("pAttr1:0x%08x\r\n",pAttr);
     while ( pAttr != NULL )
     {
         uint16 endGrpHandle;

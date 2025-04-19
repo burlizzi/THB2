@@ -99,6 +99,14 @@ uint8_t adv_set_data(void * pd) {
 	p->c_id = BtHomeID_count32;
 	p->counter = adv_wrk.rds_count;
 #endif
+	p->m_id = BtHomeID_motion;
+	p->motion = measured_data.motion?1:0; // x mV
+	if (measured_data.motion) 
+	{
+		measured_data.motion --;
+		LUCA_LOG("nom %d\n",measured_data.motion);
+	}
+
 	return sizeof(adv_bthome_data2_t);
 }
 
@@ -120,18 +128,52 @@ uint8_t adv_set_event(void * ped) {
 	p->button = measured_data.button;
 	p->c_id = BtHomeID_count32;
 	p->counter = adv_wrk.rds_count;
+	p->m_id = BtHomeID_motion;
+	p->motion = measured_data.motion; // x mV
 	return sizeof(adv_bthome_event1_t);
 }
 #endif
 
 uint8_t bthome_data_beacon(void * padbuf) {
 #if (DEV_SERVICES & SERVICE_FINDMY)
-	if (adv_wrk.adv_event == 0 && (cfg.flg & FLG_FINDMY)) {
-		gapRole_AdvEventType = LL_ADV_NONCONNECTABLE_UNDIRECTED_EVT;
-		return  findmy_beacon(padbuf);
+	dbg_printf("0bthome:%d\n",gapRole_AdvEnabled);
+
+	if ((adv_wrk.adv_event == 0) && (cfg.flg & FLG_FINDMY) && (clkt.utc_time_sec > *(uint32_t*)(&identity_findmy_key[32]))) {
+		if(gapRole_AdvEnabled) {
+			adv_wrk.adv_reload_count = 60000/DEF_CON_ADV_INERVAL_MS; // 60 sec
+			set_new_adv_interval(DEF_CON_ADV_INERVAL); // actual time * 625us
+		}
+		//osal_set_event(simpleBLEPeripheral_TaskID, PIN_INPUT_EVT);
+	gapRole_AdvEventType = LL_ADV_CONNECTABLE_UNDIRECTED_EVT;
+		static uint8_t cycle=1;
+		//cycle++;
+		return cycle&1? google_findmy_beacon(padbuf):apple_findmy_beacon(padbuf);
 	} else
 		gapRole_AdvEventType = LL_ADV_CONNECTABLE_UNDIRECTED_EVT;
-#endif
+		dbg_printf("bthome:%d\n",gapRole_AdvEnabled);
+		/*uint8_t * pa = (uint8_t *)padbuf;
+		uint8_t i=0;
+		pa[i++] = 0x02; // size
+		pa[i++] = 0x01; // size
+		pa[i++] = 0x06; // size
+		pa[i++] = 0x03; // size
+		pa[i++] = 0x19; // size
+		pa[i++] = 0x40; // size
+		pa[i++] = 0x01; // size
+		pa[i++] = 0x06; // size
+		pa[i++] = 0x2c; // size
+		pa[i++] = 0xfe; // size
+		pa[i++] = 0x00; // size
+		pa[i++] = 0x00; // size
+		pa[i++] = 0x00; // size
+		pa[i++] = 0x02; // size
+		pa[i++] = 0x0a; // size
+		pa[i++] = 0x09; // size
+		pa[i++] = 0x01; // size
+		set_new_adv_interval(DEF_EVENT_ADV_INERVAL);
+		return i;/**/
+		set_new_adv_interval(DEF_EVENT_ADV_INERVAL);
+		#endif
 	padv_bthome_noencrypt_t p = (padv_bthome_noencrypt_t)padbuf;
 	p->flag[0] = 0x02; // size
 	p->flag[1] = GAP_ADTYPE_FLAGS; // type

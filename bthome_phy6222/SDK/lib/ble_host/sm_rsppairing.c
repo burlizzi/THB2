@@ -96,6 +96,7 @@ bStatus_t SM_ResponderInit( void )
 {
     if ( gapProfileRole & GAP_PROFILE_PERIPHERAL )
     {
+        LUCA_LOG("SM_ResponderInit\n");
         // Set up Responder's processing function
         smRegisterResponder( &smResponderCBs );
     }
@@ -118,6 +119,24 @@ bStatus_t SM_ResponderInit( void )
 
     @return      TRUE - We are always expecting this message
 */
+
+
+hciStatus_t HCI_LE_LtkReqReplyCmd1( uint16 connHandle,
+    uint8*  ltk )
+{
+// 0: Status
+// 1: Connection Handle (LSB)
+// 2: Connection Handle (MSB)
+uint8 rtnParam[3];
+rtnParam[0] = LL_EncLtkReply( connHandle, ltk );
+rtnParam[1] = LO_UINT16( connHandle );
+rtnParam[2] = HI_UINT16( connHandle );
+LUCA_LOG("HCI_LE_LtkReqReplyCmd %d\n", rtnParam[0]);
+HCI_CommandCompleteEvent( 0x201A, sizeof(rtnParam), rtnParam );
+return ( HCI_SUCCESS );
+}
+
+
 static uint8 smResponderProcessLTKReq( uint16 connectionHandle, uint8* pRandom, uint16 encDiv )
 {
     uint16 connHandle = 0;      // Found connection handle
@@ -126,6 +145,7 @@ static uint8 smResponderProcessLTKReq( uint16 connectionHandle, uint8* pRandom, 
     // Clear the LTK
     VOID osal_memset( cmdLtk, 0, KEYLEN );
 
+    
     // Check the parameters
     if ( (pPairingParams[connectionHandle])
             && (pPairingParams[connectionHandle]->connectionHandle == connectionHandle)
@@ -161,6 +181,7 @@ static uint8 smResponderProcessLTKReq( uint16 connectionHandle, uint8* pRandom, 
             }
             else
             {
+                LUCA_LOG("Rejected, end bonding\n");
                 // Rejected, end bonding
                 smEndPairing( connectionHandle, bleGAPBondRejected );
             }
@@ -199,10 +220,12 @@ static uint8 smResponderProcessLTKReq( uint16 connectionHandle, uint8* pRandom, 
 
     if ( stat == SUCCESS )
     {
-        HCI_LE_LtkReqReplyCmd( connHandle, cmdLtk );
+        LUCA_LOG("LTK Req Reply\n");
+        HCI_LE_LtkReqReplyCmd1( connHandle, cmdLtk );
     }
     else
     {
+        LUCA_LOG("LTK Req Neg Reply\n");
         HCI_LE_LtkReqNegReplyCmd( connectionHandle );
     }
 

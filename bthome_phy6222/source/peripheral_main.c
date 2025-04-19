@@ -16,6 +16,7 @@
 #include "OSAL_Tasks.h"
 #include "OSAL_PwrMgr.h"
 #include "osal_snv.h"
+#include "nearby_fp_client.h"
 
 /**************************************************************************************************
 	FUNCTIONS
